@@ -1,0 +1,10 @@
+.Grid {
+    border: 1px solid #d9dddd;
+  }
+  
+  .GridItem {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f8f0;
+  }
