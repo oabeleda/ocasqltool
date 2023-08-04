@@ -1,6 +1,0 @@
-{"connections": [{"url": "find me in INSTALL_DIR/resources/app/public/sqltool.conf", "username": "USERNAME1","password": "Not encrypted, leave blank for added security"},
-{"url": "URL2", "username": "USERNAME2","password": "PASSWORD2"}]
-}
-
-
-
