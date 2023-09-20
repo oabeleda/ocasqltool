@@ -27,3 +27,6 @@ See the section about [deployment](https://facebook.github.io/create-react-app/d
 ### `npm run package-win`
 Builds the electron app for windows.  npm run build must be run first
 
+
+read release for usage instruction
+
