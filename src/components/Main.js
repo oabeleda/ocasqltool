@@ -5,8 +5,11 @@ import Editor from './Editor';
 import ResultPanel from "./ResultsPanel";
 import { isConnected, run, logout } from "../utils/api";
 import { Login } from "./Login";
+import { ConnectionsManager } from "./ConnectionsManager";
+import { ParametersModal } from "./ParametersModal";
 import transformResultsForRBT from "./transformResultsForRBT";
 import ProgressIndicator from "./ProgressIndicator";
+import { extractParameters, replaceParameters } from "../utils/sqlParams";
 import './main.module.css'
 
 
@@ -21,6 +24,10 @@ export default function Main() {
   const [connected, setConnected] = useState(false)
   const [fetching, setFetching] = useState(false)
   const [session, setSession] = useState([])
+  const [showConnectionsManager, setShowConnectionsManager] = useState(false)
+  const [showParamsModal, setShowParamsModal] = useState(false)
+  const [currentSql, setCurrentSql] = useState('')
+  const [sqlParameters, setSqlParameters] = useState([])
 
   useEffect(() => {
     transformResultsForRBT(rows, setHeaders, setData);
@@ -52,6 +59,20 @@ export default function Main() {
   }
 
   const onExecute = async (sql) => {
+    // Check for parameters
+    const params = extractParameters(sql)
+
+    if (params.length > 0) {
+      setCurrentSql(sql)
+      setSqlParameters(params)
+      setShowParamsModal(true)
+      return
+    }
+
+    executeQuery(sql)
+  }
+
+  const executeQuery = async (sql) => {
     setError(null)
     setData(null)
     setHeaders(null)
@@ -67,15 +88,24 @@ export default function Main() {
     }
   }
 
+  const handleParameterExecute = (paramValues) => {
+    const finalSql = replaceParameters(currentSql, paramValues)
+    setShowParamsModal(false)
+    executeQuery(finalSql)
+  }
+
   const handleSuccess = (data) => {
     const [a, ...b] = data
     setSession(b)
     setConnected(a)
   }
 
-  if (!connected) {
-    return <Login onLoginSuccess={handleSuccess} />
+  if (!connected && !showConnectionsManager) {
+    return <Login onLoginSuccess={handleSuccess} onManageConnections={() => setShowConnectionsManager(true)} />
+  }
 
+  if (!connected && showConnectionsManager) {
+    return <ConnectionsManager onClose={() => setShowConnectionsManager(false)} />
   }
 
 
@@ -84,6 +114,12 @@ export default function Main() {
       <div className="content-center">
         <ProgressIndicator isOpen={fetching} />
       </div>
+      <ParametersModal
+        isOpen={showParamsModal}
+        parameters={sqlParameters}
+        onExecute={handleParameterExecute}
+        onCancel={() => setShowParamsModal(false)}
+      />
       <div style={{ padding: 0, margin: 0, border: 0, paddingLeft: "5px", width: '100vw' }}>
         <span className="w-2/3 inline-flex items-center" style={{ fontSize: '90%' }}>
           <button type="button" className="" onClick={() => {

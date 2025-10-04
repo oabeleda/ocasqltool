@@ -1,7 +1,8 @@
 const path = require('path');
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { login, logout, runSql, createDataModel, modelExists, getSession } = require('../src/data/repo');
 const readConf = require('./openConfig');
+const fs = require('fs').promises;
 
 
 const connect = async (url, user, password) => {
@@ -63,14 +64,55 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('getConnections', async () =>  {
-    const data = readConf(`${__dirname}/sqltool.conf`)
+    const data = await readConf(`${__dirname}/sqltool.conf`)
+    console.log({data})
     return data
   })
 
   ipcMain.handle('logout', async () => {
     const ret = await logout()
     return ret
-  })  
+  })
+
+  ipcMain.handle('saveConnections', async (_, data) => {
+    try {
+      await fs.writeFile(`${__dirname}/sqltool.conf`, data, 'utf8')
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('saveFile', async (_, { content, filePath }) => {
+    try {
+      let savePath = filePath
+      if (!savePath) {
+        const result = await dialog.showSaveDialog({
+          filters: [{ name: 'SQL Files', extensions: ['sql'] }, { name: 'All Files', extensions: ['*'] }]
+        })
+        if (result.canceled) return { success: false }
+        savePath = result.filePath
+      }
+      await fs.writeFile(savePath, content, 'utf8')
+      return { success: true, filePath: savePath }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('openFile', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        filters: [{ name: 'SQL Files', extensions: ['sql'] }, { name: 'All Files', extensions: ['*'] }],
+        properties: ['openFile']
+      })
+      if (result.canceled) return { success: false }
+      const content = await fs.readFile(result.filePaths[0], 'utf8')
+      return { success: true, content, filePath: result.filePaths[0] }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
 
   createWindow()
 });

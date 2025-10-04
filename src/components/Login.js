@@ -2,7 +2,7 @@ import { AgGridReact } from "ag-grid-react";
 import { useEffect, useRef, useState } from "react"
 import { getConnections, login } from "../utils/api";
 
-export const Login = ({ onLoginSuccess }) => {
+export const Login = ({ onLoginSuccess, onManageConnections }) => {
 
     const urlRef = useRef(null);
     const usrRef = useRef(null);
@@ -57,9 +57,12 @@ export const Login = ({ onLoginSuccess }) => {
                 <label className="login-input-label" >Password</label>
                 <input className="login-input-text w-full" ref={pwdRef} type="password" name="password" />
 
-                <div className="flex justify-center p-0">
-                    <button className=" bg-indigo-400 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" onClick={handleLogin}>
+                <div className="flex justify-center gap-2 p-0">
+                    <button className="bg-indigo-400 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded" onClick={handleLogin}>
                         Connect
+                    </button>
+                    <button className="bg-gray-400 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded" onClick={onManageConnections}>
+                        Manage
                     </button>
                 </div>
 
