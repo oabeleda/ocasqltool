@@ -107,6 +107,7 @@ const Editor = ({ onExecute }) => {
       <Dummy/>
       <CodeMirror
         ref={editorRef}
+        value={text}
         extensions={[sql()]}
         onKeyDown={handleKeyDown}
         onChange={handleChange}
