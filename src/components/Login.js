@@ -41,6 +41,17 @@ export const Login = ({ onLoginSuccess, onManageConnections }) => {
         pwdRef.current.value = data.password
     }
 
+    const handleDoubleClicked = async ({ data }) => {
+        urlRef.current.value = data.url
+        usrRef.current.value = data.username
+        pwdRef.current.value = data.password
+
+        // Automatically login with the double-clicked connection
+        const [response, error] = await login(data.url, data.username, data.password)
+        if (error) alert(error)
+        if (response) onLoginSuccess([true, data.url, data.username, data.password])
+    }
+
     const defaultColDef ={
         flex: 1
     }
@@ -72,6 +83,7 @@ export const Login = ({ onLoginSuccess, onManageConnections }) => {
                     <AgGridReact
                         defaultColDef={defaultColDef}
                         onRowClicked={handleClicked}
+                        onRowDoubleClicked={handleDoubleClicked}
                         rowData={connections}
                         columnDefs={columnDefs}>
 

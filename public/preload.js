@@ -10,4 +10,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveFile: (params) => ipcRenderer.invoke('saveFile', params),
     saveFileAs: (params) => ipcRenderer.invoke('saveFileAs', params),
     openFile: () => ipcRenderer.invoke('openFile'),
+    getHistoryFile: () => ipcRenderer.invoke('getHistoryFile'),
+    saveHistoryFile: (params) => ipcRenderer.invoke('saveHistoryFile', params),
 })
