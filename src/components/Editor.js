@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getStatement } from "./getStatement";
-import { saveFile, openFile } from "../utils/api";
+import { saveFile, saveFileAs, openFile } from "../utils/api";
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql'
 
@@ -23,6 +23,13 @@ const Editor = ({ onExecute }) => {
       onExecute(sql)
     }
 
+    // Ctrl+Shift+S or Cmd+Shift+S to save as
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'S') {
+      event.preventDefault()
+      handleSaveAs()
+      return
+    }
+
     // Ctrl+S or Cmd+S to save
     if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault()
@@ -38,6 +45,19 @@ const Editor = ({ onExecute }) => {
 
   const handleSave = async () => {
     const result = await saveFile(text, currentFilePath)
+    if (result.success) {
+      setCurrentFilePath(result.filePath)
+      alert('File saved successfully')
+    } else if (result.error) {
+      alert(`Error saving file: ${result.error}`)
+    } else if (result.canceled) {
+      // User canceled the save operation
+      return
+    }
+  }
+
+  const handleSaveAs = async () => {
+    const result = await saveFileAs(text, currentFilePath)
     if (result.success) {
       setCurrentFilePath(result.filePath)
       alert('File saved successfully')
@@ -97,6 +117,13 @@ const Editor = ({ onExecute }) => {
           title="Save File (Ctrl+S)"
         >
           <SaveIcon /> Save
+        </button>
+        <button
+          onClick={handleSaveAs}
+          className="flex items-center gap-1 bg-green-600 hover:bg-green-800 text-white text-xs py-1 px-2 rounded"
+          title="Save File As (Ctrl+Shift+S)"
+        >
+          <SaveIcon /> Save As
         </button>
         {currentFilePath && (
           <span className="text-xs text-gray-600 flex items-center ml-2">

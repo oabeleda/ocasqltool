@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getConnections: () => ipcRenderer.invoke('getConnections'),
     saveConnections: (data) => ipcRenderer.invoke('saveConnections', data),
     saveFile: (params) => ipcRenderer.invoke('saveFile', params),
+    saveFileAs: (params) => ipcRenderer.invoke('saveFileAs', params),
     openFile: () => ipcRenderer.invoke('openFile'),
 })

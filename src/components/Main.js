@@ -55,7 +55,15 @@ export default function Main() {
 
   const handleRowNumChange = async (event) => {
     const val = event.target.value
-    await setNumRows(val)
+    // Validate that rows is a positive integer
+    const numVal = parseInt(val, 10)
+    if (!isNaN(numVal) && numVal > 0) {
+      await setNumRows(numVal)
+    } else if (val === '') {
+      // Allow empty input, will default to 10
+      await setNumRows(10)
+    }
+    // Ignore invalid values (negative, zero, non-numeric)
   }
 
   const onExecute = async (sql) => {
@@ -78,7 +86,10 @@ export default function Main() {
     setHeaders(null)
     setFetching(true)
 
-    const [results, error] = await run(sql, numRows)
+    // Ensure numRows is a valid positive integer, default to 10 if not
+    const validRows = (numRows && numRows > 0) ? numRows : 10
+
+    const [results, error] = await run(sql, validRows)
     if (results) {
       setRows(results)
     }

@@ -6,4 +6,5 @@ export const getConnections = async () => await window.electronAPI.getConnection
 export const saveConnections = async (data) => await window.electronAPI.saveConnections(data)
 export const logout = async () => await window.electronAPI.logout()
 export const saveFile = async (content, filePath) => await window.electronAPI.saveFile({ content, filePath })
+export const saveFileAs = async (content, currentFilePath) => await window.electronAPI.saveFileAs({ content, currentFilePath })
 export const openFile = async () => await window.electronAPI.openFile()
