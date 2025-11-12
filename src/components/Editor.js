@@ -1,14 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { getStatement } from "./getStatement";
 import { saveFile, saveFileAs, openFile } from "../utils/api";
 import CodeMirror from '@uiw/react-codemirror';
 import { sql } from '@codemirror/lang-sql'
 
-const Editor = ({ onExecute }) => {
+const Editor = forwardRef(({ onExecute, onShowHistory }, ref) => {
   const [text, setText] = useState("")
   const editorRef = useRef()
   const [scroll, setScroll] = useState(false)
   const [currentFilePath, setCurrentFilePath] = useState(null)
+
+  // Expose setText method to parent component
+  useImperativeHandle(ref, () => ({
+    setText: (newText) => {
+      setText(newText)
+    }
+  }))
 
   useEffect(()=>{
       if (scroll)
@@ -21,6 +28,15 @@ const Editor = ({ onExecute }) => {
       const position = editorRef.current.view.viewState.state.selection.ranges[0].from
       const sql = getStatement(val, position)
       onExecute(sql)
+    }
+
+    // Ctrl+F8 to open SQL history
+    if (event.ctrlKey && event.key === 'F8') {
+      event.preventDefault()
+      if (onShowHistory) {
+        onShowHistory()
+      }
+      return
     }
 
     // Ctrl+Shift+S or Cmd+Shift+S to save as
@@ -144,6 +160,6 @@ const Editor = ({ onExecute }) => {
       />
     </>
   );
-}
+})
 
 export default Editor

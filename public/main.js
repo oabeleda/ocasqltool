@@ -158,6 +158,40 @@ app.whenReady().then(() => {
     }
   })
 
+  // SQL History file operations
+  const getHistoryFilePath = () => {
+    const userDataPath = app.getPath('userData')
+    return path.join(userDataPath, 'sqlHistory.json')
+  }
+
+  ipcMain.handle('getHistoryFile', async () => {
+    try {
+      const historyPath = getHistoryFilePath()
+      try {
+        const content = await fs.readFile(historyPath, 'utf8')
+        return { success: true, content }
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          // File doesn't exist, return empty array
+          return { success: true, content: '[]' }
+        }
+        throw err
+      }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('saveHistoryFile', async (_, { content }) => {
+    try {
+      const historyPath = getHistoryFilePath()
+      await fs.writeFile(historyPath, content, 'utf8')
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
   createWindow()
 });
 

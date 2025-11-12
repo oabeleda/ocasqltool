@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import SplitPane, { Pane } from 'split-pane-react';
 import 'split-pane-react/esm/themes/default.css';
 import Editor from './Editor';
@@ -7,9 +7,11 @@ import { isConnected, run, logout } from "../utils/api";
 import { Login } from "./Login";
 import { ConnectionsManager } from "./ConnectionsManager";
 import { ParametersModal } from "./ParametersModal";
+import { SqlHistoryModal } from "./SqlHistoryModal";
 import transformResultsForRBT from "./transformResultsForRBT";
 import ProgressIndicator from "./ProgressIndicator";
 import { extractParameters, replaceParameters } from "../utils/sqlParams";
+import { addToHistory } from "../utils/sqlHistory";
 import './main.module.css'
 
 
@@ -26,8 +28,10 @@ export default function Main() {
   const [session, setSession] = useState([])
   const [showConnectionsManager, setShowConnectionsManager] = useState(false)
   const [showParamsModal, setShowParamsModal] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [currentSql, setCurrentSql] = useState('')
   const [sqlParameters, setSqlParameters] = useState([])
+  const editorRef = useRef()
 
   useEffect(() => {
     transformResultsForRBT(rows, setHeaders, setData);
@@ -86,6 +90,9 @@ export default function Main() {
     setHeaders(null)
     setFetching(true)
 
+    // Add query to history
+    addToHistory(sql)
+
     // Ensure numRows is a valid positive integer, default to 10 if not
     const validRows = (numRows && numRows > 0) ? numRows : 10
 
@@ -103,6 +110,14 @@ export default function Main() {
     const finalSql = replaceParameters(currentSql, paramValues)
     setShowParamsModal(false)
     executeQuery(finalSql)
+  }
+
+  const handleSelectHistoryQuery = (sql) => {
+    // Load the selected query into the editor
+    if (editorRef.current && editorRef.current.setText) {
+      editorRef.current.setText(sql)
+    }
+    setShowHistoryModal(false)
   }
 
   const handleSuccess = (data) => {
@@ -131,6 +146,11 @@ export default function Main() {
         onExecute={handleParameterExecute}
         onCancel={() => setShowParamsModal(false)}
       />
+      <SqlHistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        onSelectQuery={handleSelectHistoryQuery}
+      />
       <div style={{ padding: 0, margin: 0, border: 0, paddingLeft: "5px", width: '100vw' }}>
         <span className="w-2/3 inline-flex items-center" style={{ fontSize: '90%' }}>
           <button type="button" className="" onClick={() => {
@@ -153,7 +173,11 @@ export default function Main() {
         onChange={setSizes}
       >
         <Pane  minSize='30%' maxSize='70%' >
-          <Editor onExecute={onExecute} />
+          <Editor
+            ref={editorRef}
+            onExecute={onExecute}
+            onShowHistory={() => setShowHistoryModal(true)}
+          />
 
         </Pane>
 
