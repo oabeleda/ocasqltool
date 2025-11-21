@@ -68,11 +68,11 @@ function updateConstantsFile(publicKey) {
   try {
     let content = fs.readFileSync(CONSTANTS_PATH, 'utf8');
 
-    // Replace the placeholder public key
-    const publicKeyRegex = /export const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----[\s\S]*?-----END PUBLIC KEY-----`;/;
+    // Replace the placeholder public key (supports both export and const syntax)
+    const publicKeyRegex = /(export )?const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----[\s\S]*?-----END PUBLIC KEY-----`;/;
 
     if (publicKeyRegex.test(content)) {
-      content = content.replace(publicKeyRegex, `export const PUBLIC_KEY = \`${publicKey}\`;`);
+      content = content.replace(publicKeyRegex, `const PUBLIC_KEY = \`${publicKey}\`;`);
       fs.writeFileSync(CONSTANTS_PATH, content);
       console.log('✓ Public key updated in constants.js\n');
     } else {
