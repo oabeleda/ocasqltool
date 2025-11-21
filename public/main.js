@@ -3,6 +3,8 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { login, logout, runSql, createDataModel, modelExists, getSession } = require('../src/data/repo');
 const readConf = require('./openConfig');
 const fs = require('fs').promises;
+const { validateLicense, createTrialLicense, getLicenseFeatures } = require('../src/license/validator');
+const { getMachineId } = require('../src/license/machineId');
 
 
 const connect = async (url, user, password) => {
@@ -187,6 +189,118 @@ app.whenReady().then(() => {
       const historyPath = getHistoryFilePath()
       await fs.writeFile(historyPath, content, 'utf8')
       return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  // License management handlers
+  const getLicenseFilePath = () => {
+    const userDataPath = app.getPath('userData')
+    return path.join(userDataPath, 'license.json')
+  }
+
+  ipcMain.handle('getLicense', async () => {
+    try {
+      const licensePath = getLicenseFilePath()
+      try {
+        const content = await fs.readFile(licensePath, 'utf8')
+        const license = JSON.parse(content)
+        return { success: true, license }
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          // File doesn't exist, return null
+          return { success: true, license: null }
+        }
+        throw err
+      }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('saveLicense', async (_, license) => {
+    try {
+      const licensePath = getLicenseFilePath()
+      await fs.writeFile(licensePath, JSON.stringify(license, null, 2), 'utf8')
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('validateLicense', async () => {
+    try {
+      const licensePath = getLicenseFilePath()
+      try {
+        const content = await fs.readFile(licensePath, 'utf8')
+        const license = JSON.parse(content)
+        const result = validateLicense(license)
+        return result
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          // No license file, return invalid
+          return { valid: false, error: 'No license found' }
+        }
+        throw err
+      }
+    } catch (err) {
+      return { valid: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('getMachineId', async () => {
+    try {
+      const machineId = getMachineId()
+      return { success: true, machineId }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('initializeTrial', async () => {
+    try {
+      const licensePath = getLicenseFilePath()
+      // Check if license already exists
+      try {
+        await fs.access(licensePath)
+        // License exists, don't create trial
+        return { success: true, message: 'License already exists' }
+      } catch (err) {
+        // License doesn't exist, create trial
+        const trialLicense = createTrialLicense()
+        await fs.writeFile(licensePath, JSON.stringify(trialLicense, null, 2), 'utf8')
+        return { success: true, message: 'Trial license created' }
+      }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('getLicenseFeatures', async () => {
+    try {
+      const licensePath = getLicenseFilePath()
+      try {
+        const content = await fs.readFile(licensePath, 'utf8')
+        const license = JSON.parse(content)
+        const validation = validateLicense(license)
+
+        if (validation.valid) {
+          const features = getLicenseFeatures(license.tier)
+          return { success: true, features, tier: license.tier }
+        } else {
+          // Return trial features as default
+          const features = getLicenseFeatures('trial')
+          return { success: true, features, tier: 'trial' }
+        }
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          // No license, return trial features
+          const features = getLicenseFeatures('trial')
+          return { success: true, features, tier: 'trial' }
+        }
+        throw err
+      }
     } catch (err) {
       return { success: false, error: err.message }
     }

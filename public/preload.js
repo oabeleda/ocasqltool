@@ -12,4 +12,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openFile: () => ipcRenderer.invoke('openFile'),
     getHistoryFile: () => ipcRenderer.invoke('getHistoryFile'),
     saveHistoryFile: (params) => ipcRenderer.invoke('saveHistoryFile', params),
+    // License APIs
+    getLicense: () => ipcRenderer.invoke('getLicense'),
+    saveLicense: (license) => ipcRenderer.invoke('saveLicense', license),
+    validateLicense: () => ipcRenderer.invoke('validateLicense'),
+    getMachineId: () => ipcRenderer.invoke('getMachineId'),
+    initializeTrial: () => ipcRenderer.invoke('initializeTrial'),
+    getLicenseFeatures: () => ipcRenderer.invoke('getLicenseFeatures'),
 })

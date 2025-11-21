@@ -27,3 +27,7 @@ yarn-error.log*
 sqltool.conf
 
 packager.sh
+
+# License keys and generated licenses (NEVER commit the private key!)
+src/license/keys/
+src/license/generated/

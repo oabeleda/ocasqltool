@@ -8,10 +8,13 @@ import { Login } from "./Login";
 import { ConnectionsManager } from "./ConnectionsManager";
 import { ParametersModal } from "./ParametersModal";
 import { SqlHistoryModal } from "./SqlHistoryModal";
+import { LicenseExpiredModal } from "./LicenseExpiredModal";
+import { LicensePrompt } from "./LicensePrompt";
 import transformResultsForRBT from "./transformResultsForRBT";
 import ProgressIndicator from "./ProgressIndicator";
 import { extractParameters, replaceParameters } from "../utils/sqlParams";
 import { addToHistory } from "../utils/sqlHistory";
+import { validateLicense, getLicenseFeatures, initializeTrial } from "../utils/licenseApi";
 import './main.module.css'
 
 
@@ -29,8 +32,11 @@ export default function Main() {
   const [showConnectionsManager, setShowConnectionsManager] = useState(false)
   const [showParamsModal, setShowParamsModal] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [showLicenseExpiredModal, setShowLicenseExpiredModal] = useState(false)
   const [currentSql, setCurrentSql] = useState('')
   const [sqlParameters, setSqlParameters] = useState([])
+  const [licenseStatus, setLicenseStatus] = useState(null)
+  const [showLicensePrompt, setShowLicensePrompt] = useState(false)
   const editorRef = useRef()
 
   useEffect(() => {
@@ -47,6 +53,43 @@ export default function Main() {
 
     checkConnection()
   }, [connected])
+
+  // Initialize trial and validate license on mount
+  useEffect(() => {
+    async function checkLicense() {
+      // Initialize trial if no license exists
+      await initializeTrial()
+
+      // Validate current license
+      const result = await validateLicense()
+      setLicenseStatus(result)
+
+      // Show warning if expiring soon
+      if (result.valid && result.isExpiringSoon) {
+        setShowLicenseExpiredModal(true)
+      }
+    }
+
+    checkLicense()
+  }, [])
+
+  // Periodic license check (every hour)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const result = await validateLicense()
+      setLicenseStatus(result)
+
+      if (!result.valid) {
+        logout()
+        setConnected(false)
+        setShowLicenseExpiredModal(true)
+      } else if (result.isExpiringSoon) {
+        setShowLicenseExpiredModal(true)
+      }
+    }, 3600000) // Check every hour
+
+    return () => clearInterval(interval)
+  }, [])
 
   const DisconnectIcon = () => {
     return <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="red" className="w-6 h-6">
@@ -85,6 +128,13 @@ export default function Main() {
   }
 
   const executeQuery = async (sql) => {
+    // Check license before executing query
+    const licenseCheck = await validateLicense()
+    if (!licenseCheck.valid) {
+      setShowLicenseExpiredModal(true)
+      return
+    }
+
     setError(null)
     setData(null)
     setHeaders(null)
@@ -150,6 +200,25 @@ export default function Main() {
         isOpen={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
         onSelectQuery={handleSelectHistoryQuery}
+      />
+      <LicenseExpiredModal
+        isOpen={showLicenseExpiredModal}
+        daysRemaining={licenseStatus?.daysRemaining}
+        onEnterLicense={() => {
+          setShowLicenseExpiredModal(false)
+          setShowLicensePrompt(true)
+        }}
+        onClose={() => setShowLicenseExpiredModal(false)}
+      />
+      <LicensePrompt
+        isOpen={showLicensePrompt}
+        licenseStatus={licenseStatus}
+        onLicenseActivated={async () => {
+          setShowLicensePrompt(false)
+          // Revalidate license after activation
+          const result = await validateLicense()
+          setLicenseStatus(result)
+        }}
       />
       <div style={{ padding: 0, margin: 0, border: 0, paddingLeft: "5px", width: '100vw' }}>
         <span className="w-2/3 inline-flex items-center" style={{ fontSize: '90%' }}>
