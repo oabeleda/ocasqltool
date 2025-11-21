@@ -1,6 +1,7 @@
 import { AgGridReact } from "ag-grid-react";
 import { useEffect, useState } from "react";
 import { getConnections, saveConnections } from "../utils/api";
+import { getLicenseFeatures } from "../utils/licenseApi";
 import Modal from "react-modal";
 
 if (typeof document !== 'undefined') {
@@ -13,6 +14,7 @@ export const ConnectionsManager = ({ onClose }) => {
     const [editMode, setEditMode] = useState(false);
     const [currentConnection, setCurrentConnection] = useState({ url: '', username: '', password: '' });
     const [editIndex, setEditIndex] = useState(null);
+    const [licenseFeatures, setLicenseFeatures] = useState(null);
 
     const columnDefs = [
         { field: 'url', headerName: "URL", flex: 2 },
@@ -48,6 +50,7 @@ export const ConnectionsManager = ({ onClose }) => {
 
     useEffect(() => {
         loadConnections();
+        loadLicenseFeatures();
     }, []);
 
     const loadConnections = async () => {
@@ -56,7 +59,20 @@ export const ConnectionsManager = ({ onClose }) => {
         setConnections(parsed.connections || []);
     };
 
+    const loadLicenseFeatures = async () => {
+        const result = await getLicenseFeatures();
+        if (result.success) {
+            setLicenseFeatures(result.features);
+        }
+    };
+
     const handleAdd = () => {
+        // Check if license allows adding more connections
+        if (licenseFeatures && connections.length >= licenseFeatures.maxConnections) {
+            alert(`Your license tier allows a maximum of ${licenseFeatures.maxConnections} saved connections. Please upgrade your license to add more connections.`);
+            return;
+        }
+
         setEditMode(false);
         setCurrentConnection({ url: '', username: '', password: '' });
         setShowModal(true);
@@ -113,7 +129,14 @@ export const ConnectionsManager = ({ onClose }) => {
     return (
         <div className="p-4" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">Manage Connections</h2>
+                <div>
+                    <h2 className="text-2xl font-bold">Manage Connections</h2>
+                    {licenseFeatures && (
+                        <p className="text-sm text-gray-600 mt-1">
+                            {connections.length} of {licenseFeatures.maxConnections === Infinity ? '∞' : licenseFeatures.maxConnections} connections used
+                        </p>
+                    )}
+                </div>
                 <div className="flex gap-2">
                     <button
                         className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
