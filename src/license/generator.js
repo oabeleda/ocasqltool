@@ -138,7 +138,7 @@ function generateLicense(options) {
 
   // Calculate expiration date
   const now = new Date();
-  const expiresAt = new Date(now+2);
+  const expiresAt = new Date(now);
 
   if (years) {
     expiresAt.setFullYear(expiresAt.getFullYear() + parseInt(years));
