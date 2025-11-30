@@ -5,7 +5,6 @@ const readConf = async (p) => {
         const data = await fs.readFile(p, 'utf8')
         return data;
     }catch(err){
-        console.log(err);
         return JSON.stringify({ connections: [] });
     }
 }

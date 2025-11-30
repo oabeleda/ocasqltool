@@ -21,12 +21,13 @@ export const LicenseExpiredModal = ({ isOpen, daysRemaining, onEnterLicense, onC
 
   // Determine the severity and message
   const getWarningInfo = () => {
+    // If daysRemaining is not yet loaded, allow closing (data is still loading)
     if (daysRemaining === undefined || daysRemaining === null) {
       return {
-        title: 'License Expired',
-        message: 'Your license has expired. Please enter a valid license to continue using OCA Query Tool.',
-        severity: 'critical',
-        showClose: false,
+        title: 'License Status',
+        message: 'Checking license status...',
+        severity: 'info',
+        showClose: true,
       };
     }
 

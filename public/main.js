@@ -59,6 +59,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+
   ipcMain.handle('login', async (_, { url, user, password }) => {
     const ret = await connect(url, user, password)
     return ret
@@ -282,7 +283,7 @@ app.whenReady().then(() => {
       }
       await fs.writeFile(cachePath, JSON.stringify(prefs, null, 2), 'utf8')
     } catch (err) {
-      console.error('Failed to save preferences cache:', err)
+      // Silently ignore cache save errors
     }
   }
 

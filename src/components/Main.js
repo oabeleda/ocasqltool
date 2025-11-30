@@ -14,7 +14,7 @@ import transformResultsForRBT from "./transformResultsForRBT";
 import ProgressIndicator from "./ProgressIndicator";
 import { extractParameters, replaceParameters } from "../utils/sqlParams";
 import { addToHistory } from "../utils/sqlHistory";
-import { validateLicense, getLicenseFeatures, initializeTrial } from "../utils/licenseApi";
+import { validateLicense, initializeTrial } from "../utils/licenseApi";
 import './main.module.css'
 
 
@@ -57,16 +57,20 @@ export default function Main() {
   // Initialize trial and validate license on mount
   useEffect(() => {
     async function checkLicense() {
-      // Initialize trial if no license exists
-      await initializeTrial()
+      try {
+        // Initialize trial if no license exists
+        await initializeTrial()
 
-      // Validate current license
-      const result = await validateLicense()
-      setLicenseStatus(result)
+        // Validate current license
+        const result = await validateLicense()
+        setLicenseStatus(result)
 
-      // Show modal if expired or expiring soon
-      if (!result.valid || result.isExpiringSoon) {
-        setShowLicenseExpiredModal(true)
+        // Show modal if license is expired OR expiring within 7 days
+        if (!result.valid || (result.daysRemaining !== undefined && result.daysRemaining <= 7)) {
+          setShowLicenseExpiredModal(true)
+        }
+      } catch (err) {
+        console.error('License check error:', err)
       }
     }
 
@@ -79,11 +83,12 @@ export default function Main() {
       const result = await validateLicense()
       setLicenseStatus(result)
 
+      // Logout if license is actually expired, show warning if expiring within 7 days
       if (!result.valid) {
         logout()
         setConnected(false)
         setShowLicenseExpiredModal(true)
-      } else if (result.isExpiringSoon) {
+      } else if (result.daysRemaining !== undefined && result.daysRemaining <= 7) {
         setShowLicenseExpiredModal(true)
       }
     }, 3600000) // Check every hour
@@ -202,7 +207,7 @@ export default function Main() {
         onSelectQuery={handleSelectHistoryQuery}
       />
       <LicenseExpiredModal
-        isOpen={showLicenseExpiredModal}
+        isOpen={showLicenseExpiredModal && licenseStatus !== null}
         daysRemaining={licenseStatus?.daysRemaining}
         onEnterLicense={() => {
           setShowLicenseExpiredModal(false)
