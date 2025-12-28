@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { getMachineId } = require('./machineId');
-const { PUBLIC_KEY, LICENSE_TIERS, TRIAL_DURATION_DAYS, LICENSE_VERSION } = require('./constants');
+const { PUBLIC_KEY, LICENSE_TIERS, TRIAL_DURATION_DAYS, LICENSE_VERSION, getTrialPrivateKey, TRIAL_PUBLIC_KEY } = require('./constants');
 
 /**
  * License validation result
@@ -67,21 +67,28 @@ function validateLicense(license, skipMachineIdCheck = false) {
       return { valid: false, error: 'License issued date is in the future' };
     }
 
-    // For paid licenses, validate machine ID
-    if (type === 'paid' && !skipMachineIdCheck) {
-      if (!machineId) {
-        return { valid: false, error: 'License missing machine ID' };
-      }
+    // Validate machine ID for ALL license types
+    if (!machineId) {
+      return { valid: false, error: 'License missing machine ID' };
+    }
 
+    if (!skipMachineIdCheck) {
       const currentMachineId = getMachineId();
       if (machineId !== currentMachineId) {
         return { valid: false, error: 'License is bound to a different machine' };
       }
     }
 
-    // Validate signature (if public key is set)
-    if (signature && PUBLIC_KEY && !PUBLIC_KEY.includes('PLACEHOLDER')) {
-      const isSignatureValid = verifySignature(license, signature);
+    // Validate signature for ALL license types
+    if (!signature) {
+      return { valid: false, error: 'License missing signature' };
+    }
+
+    // Use the appropriate public key based on license type
+    const publicKey = type === 'trial' ? TRIAL_PUBLIC_KEY : PUBLIC_KEY;
+
+    if (publicKey && !publicKey.includes('PLACEHOLDER')) {
+      const isSignatureValid = verifySignature(license, signature, publicKey);
       if (!isSignatureValid) {
         return { valid: false, error: 'Invalid license signature' };
       }
@@ -109,9 +116,10 @@ function validateLicense(license, skipMachineIdCheck = false) {
  *
  * @param {Object} license - The license object
  * @param {string} signature - The base64-encoded signature
+ * @param {string} publicKey - The public key to verify against
  * @returns {boolean}
  */
-function verifySignature(license, signature) {
+function verifySignature(license, signature, publicKey = PUBLIC_KEY) {
   try {
     // Create a copy without the signature for verification
     const { signature: _, ...licenseData } = license;
@@ -124,7 +132,7 @@ function verifySignature(license, signature) {
     verifier.update(dataString);
     verifier.end();
 
-    return verifier.verify(PUBLIC_KEY, signature, 'base64');
+    return verifier.verify(publicKey, signature, 'base64');
   } catch (error) {
     console.error('Signature verification error:', error);
     return false;
@@ -132,26 +140,57 @@ function verifySignature(license, signature) {
 }
 
 /**
- * Create a trial license
+ * Sign a trial license with the embedded trial key
  *
+ * @param {Object} license - The license object (without signature)
+ * @returns {string} Base64-encoded signature
+ */
+function signTrialLicense(license) {
+  try {
+    const { signature: _, ...licenseData } = license;
+    const dataString = JSON.stringify(licenseData, Object.keys(licenseData).sort());
+
+    const signer = crypto.createSign('RSA-SHA256');
+    signer.update(dataString);
+    signer.end();
+
+    return signer.sign(getTrialPrivateKey(), 'base64');
+  } catch (error) {
+    console.error('Trial signing error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create a trial license (machine-bound and signed)
+ *
+ * @param {string} machineId - The machine ID to bind the trial to
  * @param {string} email - User's email (optional for trial)
  * @returns {Object} Trial license object
  */
-function createTrialLicense(email = 'trial@local') {
+function createTrialLicense(machineId, email = 'trial@local') {
+  if (!machineId) {
+    throw new Error('Machine ID is required for trial license');
+  }
+
   const now = new Date();
   const expiresAt = new Date(now);
   expiresAt.setDate(expiresAt.getDate() + TRIAL_DURATION_DAYS);
 
-  return {
+  const license = {
     version: LICENSE_VERSION,
     type: 'trial',
     email,
     tier: 'trial',
-    machineId: null, // No machine binding for trial
+    machineId,
     issuedAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
-    signature: null, // No signature for trial
   };
+
+  // Sign the trial license
+  license.signature = signTrialLicense(license);
+
+  return license;
 }
 
 /**

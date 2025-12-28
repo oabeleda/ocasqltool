@@ -27,10 +27,18 @@ const connect = async (url, user, password) => {
 const isConnected = () => Object.keys(getSession()).length > 0
 
 function createWindow() {
+  // Set icon path - use optimized 256x256 icon for better Linux compatibility
+  let iconPath = path.join(__dirname, 'icon-256.png');
+  const fs = require('fs');
+  if (!fs.existsSync(iconPath)) {
+    iconPath = path.join(__dirname, '../public/icon-256.png');
+  }
+
   const win = new BrowserWindow({
     width: 1200,
     height: 950,
     title: "OCA Query Tool",
+    icon: iconPath,
     webPreferences: {
       nodeIntegration: true,
       preload: path.join(__dirname, 'preload.js')
@@ -67,7 +75,6 @@ app.whenReady().then(() => {
 
   ipcMain.handle('getConnections', async () =>  {
     const data = await readConf(`${__dirname}/sqltool.conf`)
-    console.log({data})
     return data
   })
 
@@ -197,6 +204,7 @@ app.whenReady().then(() => {
   // License management handlers
   const getLicenseFilePath = () => {
     const userDataPath = app.getPath('userData')
+    console.log(userDataPath)
     return path.join(userDataPath, 'license.json')
   }
 
@@ -267,8 +275,9 @@ app.whenReady().then(() => {
         // License exists, don't create trial
         return { success: true, message: 'License already exists' }
       } catch (err) {
-        // License doesn't exist, create trial
-        const trialLicense = createTrialLicense()
+        // License doesn't exist, create trial (machine-bound and signed)
+        const machineId = getMachineId()
+        const trialLicense = createTrialLicense(machineId)
         await fs.writeFile(licensePath, JSON.stringify(trialLicense, null, 2), 'utf8')
         return { success: true, message: 'Trial license created' }
       }

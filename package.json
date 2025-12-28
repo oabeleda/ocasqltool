@@ -35,8 +35,8 @@
     "eject": "react-scripts eject",
     "dev": "concurrently -k \"BROWSER=none npm start\" \"npm:electron\"",
     "electron": "wait-on tcp:3000 && electron .",
-    "package-linux": "electron-packager . sqltool --platform=linux --arch=x64 --prune=true --overwrite=true",
-    "package-win": "electron-packager . sqltool --platform=win32 --arch=x64 --prune=true --overwrite=true",
+    "package-linux": "electron-packager . sqltool --platform=linux --arch=x64 --icon=public/icon-512.png --prune=true --overwrite=true",
+    "package-win": "electron-packager . sqltool --platform=win32 --arch=x64 --icon=public/icon-512.ico --prune=true --overwrite=true",
     "generate-license": "node src/license/generator.js",
     "generate-keys": "node src/license/generator.js --generate-keys"
   },

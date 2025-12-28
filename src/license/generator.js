@@ -137,7 +137,7 @@ function generateLicense(options) {
   const privateKey = fs.readFileSync(PRIVATE_KEY_PATH, 'utf8');
 
   // Calculate expiration date
-  const now = new Date();
+  const now = new Date()-40;
   const expiresAt = new Date(now);
 
   if (years) {
