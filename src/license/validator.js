@@ -56,9 +56,8 @@ function validateLicense(license, skipMachineIdCheck = false) {
     if (isNaN(expirationDate.getTime()) || isNaN(issuedDate.getTime())) {
       return { valid: false, error: 'Invalid license dates' };
     }
-
     // Check if license has expired
-    if (now > expirationDate) {
+    if (now.getTime() > expirationDate.getTime()) {
       return { valid: false, error: 'License has expired' };
     }
 
@@ -166,15 +165,17 @@ function signTrialLicense(license) {
  *
  * @param {string} machineId - The machine ID to bind the trial to
  * @param {string} email - User's email (optional for trial)
+ * @param {Date} startDate - Original install date (optional, for preventing trial reset)
  * @returns {Object} Trial license object
  */
-function createTrialLicense(machineId, email = 'trial@local') {
+function createTrialLicense(machineId, email = 'trial@local', startDate = null) {
   if (!machineId) {
     throw new Error('Machine ID is required for trial license');
   }
 
-  const now = new Date();
-  const expiresAt = new Date(now);
+  // Use provided start date or current date
+  const issuedAt = startDate || new Date();
+  const expiresAt = new Date(issuedAt);
   expiresAt.setDate(expiresAt.getDate() + TRIAL_DURATION_DAYS);
 
   const license = {
@@ -183,7 +184,7 @@ function createTrialLicense(machineId, email = 'trial@local') {
     email,
     tier: 'trial',
     machineId,
-    issuedAt: now.toISOString(),
+    issuedAt: issuedAt.toISOString(),
     expiresAt: expiresAt.toISOString(),
   };
 

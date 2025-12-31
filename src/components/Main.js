@@ -64,8 +64,8 @@ export default function Main() {
       const result = await validateLicense()
       setLicenseStatus(result)
 
-      // Show warning if expiring soon
-      if (result.valid && result.isExpiringSoon) {
+      // Show modal if expired or expiring soon
+      if (!result.valid || result.isExpiringSoon) {
         setShowLicenseExpiredModal(true)
       }
     }

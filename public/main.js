@@ -204,8 +204,100 @@ app.whenReady().then(() => {
   // License management handlers
   const getLicenseFilePath = () => {
     const userDataPath = app.getPath('userData')
-    console.log(userDataPath)
     return path.join(userDataPath, 'license.json')
+  }
+
+  // App preferences cache (includes install tracking and license backup)
+  const getPreferencesCachePath = () => {
+    const userDataPath = app.getPath('userData')
+    return path.join(userDataPath, 'window.state')
+  }
+
+  // Encode license to look like a query signature hash
+  const encodeLicenseBackup = (license) => {
+    const json = JSON.stringify(license)
+    return Buffer.from(json).toString('base64')
+  }
+
+  // Decode license backup
+  const decodeLicenseBackup = (encoded) => {
+    try {
+      const json = Buffer.from(encoded, 'base64').toString('utf8')
+      return JSON.parse(json)
+    } catch {
+      return null
+    }
+  }
+
+  const getOriginalInstallDate = async () => {
+    try {
+      const cachePath = getPreferencesCachePath()
+      const content = await fs.readFile(cachePath, 'utf8')
+      const prefs = JSON.parse(content)
+      const machineId = getMachineId()
+      // Verify cache belongs to this machine
+      if (prefs.deviceId === machineId.substring(0, 16)) {
+        return new Date(prefs.lastSync)
+      }
+      return null
+    } catch (err) {
+      return null
+    }
+  }
+
+  // Get license backup from preferences cache
+  const getLicenseBackup = async () => {
+    try {
+      const cachePath = getPreferencesCachePath()
+      const content = await fs.readFile(cachePath, 'utf8')
+      const prefs = JSON.parse(content)
+      const machineId = getMachineId()
+      // Verify cache belongs to this machine
+      if (prefs.deviceId === machineId.substring(0, 16) && prefs.lastQuerySignature) {
+        return decodeLicenseBackup(prefs.lastQuerySignature)
+      }
+      return null
+    } catch (err) {
+      return null
+    }
+  }
+
+  const saveInstallMarker = async (installDate, license = null) => {
+    try {
+      const cachePath = getPreferencesCachePath()
+      const machineId = getMachineId()
+      // Looks like generic app preferences/window state
+      const prefs = {
+        version: '1.0.0',
+        windowBounds: { width: 1200, height: 800, x: 100, y: 100 },
+        theme: 'system',
+        lastSync: installDate.toISOString(),
+        deviceId: machineId.substring(0, 16),
+        telemetry: true,
+        autoUpdate: true
+      }
+      // Store encoded license backup (looks like a query cache signature)
+      if (license) {
+        prefs.lastQuerySignature = encodeLicenseBackup(license)
+      }
+      await fs.writeFile(cachePath, JSON.stringify(prefs, null, 2), 'utf8')
+    } catch (err) {
+      console.error('Failed to save preferences cache:', err)
+    }
+  }
+
+  // Update license backup when license changes
+  const updateLicenseBackup = async (license) => {
+    try {
+      const cachePath = getPreferencesCachePath()
+      const content = await fs.readFile(cachePath, 'utf8')
+      const prefs = JSON.parse(content)
+      prefs.lastQuerySignature = encodeLicenseBackup(license)
+      await fs.writeFile(cachePath, JSON.stringify(prefs, null, 2), 'utf8')
+    } catch (err) {
+      // If prefs file doesn't exist, create it with the license
+      await saveInstallMarker(new Date(), license)
+    }
   }
 
   ipcMain.handle('getLicense', async () => {
@@ -231,6 +323,8 @@ app.whenReady().then(() => {
     try {
       const licensePath = getLicenseFilePath()
       await fs.writeFile(licensePath, JSON.stringify(license, null, 2), 'utf8')
+      // Also backup the license to window.state
+      await updateLicenseBackup(license)
       return { success: true }
     } catch (err) {
       return { success: false, error: err.message }
@@ -275,10 +369,28 @@ app.whenReady().then(() => {
         // License exists, don't create trial
         return { success: true, message: 'License already exists' }
       } catch (err) {
-        // License doesn't exist, create trial (machine-bound and signed)
+        // License doesn't exist - check for backup first
+        const backupLicense = await getLicenseBackup()
+        if (backupLicense) {
+          // Restore license from backup
+          await fs.writeFile(licensePath, JSON.stringify(backupLicense, null, 2), 'utf8')
+          return { success: true, message: 'License restored from backup' }
+        }
+
+        // No backup - check for previous install marker
         const machineId = getMachineId()
-        const trialLicense = createTrialLicense(machineId)
+        let installDate = await getOriginalInstallDate()
+
+        if (!installDate) {
+          // First time install - save marker
+          installDate = new Date()
+        }
+
+        // Create trial based on original install date (prevents reset by deleting license)
+        const trialLicense = createTrialLicense(machineId, 'trial@local', installDate)
         await fs.writeFile(licensePath, JSON.stringify(trialLicense, null, 2), 'utf8')
+        // Save marker with trial license backup
+        await saveInstallMarker(installDate, trialLicense)
         return { success: true, message: 'Trial license created' }
       }
     } catch (err) {
